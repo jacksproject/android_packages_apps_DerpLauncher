@@ -59,6 +59,12 @@ import com.android.launcher3.graphics.ThemeManager;
 public class ClipIconView extends View implements ClipPathView {
 
     private static final Rect sTmpRect = new Rect();
+    // OPlus style splash: while opening, the icon grows with the window only up to this
+    // fraction of the screen's short side, then stays small in the centre.
+    private static final float SPLASH_ICON_MAX_FRACTION = 0.16f;
+    // Opening splash is a circle that grows past the screen; it covers the screen by this
+    // fraction of the open animation (0 = plain rounded rect).
+    private static final float CIRCLE_OPEN_FULL_AT = 0.35f;
 
     private final int mBlurSizeOutline;
     private final boolean mIsRtl;
@@ -78,6 +84,10 @@ public class ClipIconView extends View implements ClipPathView {
     private float mTaskCornerRadius;
 
     private final Rect mOutline = new Rect();
+    // Circle clip used while opening (see CIRCLE_OPEN_FULL_AT).
+    private final Rect mCircleOutline = new Rect();
+    private float mCircleRadius;
+    private boolean mCircleActive;
     private final Rect mFinalDrawableBounds = new Rect();
 
     @Nullable private TaskViewArtist mTaskViewArtist;
@@ -172,6 +182,22 @@ public class ClipIconView extends View implements ClipPathView {
         }
 
         mTaskCornerRadius = cornerRadius / scale;
+        mCircleActive = isOpening && CIRCLE_OPEN_FULL_AT > 0f;
+        if (mCircleActive) {
+            // Circle centred on the window rect; grows from the icon size to the screen diagonal.
+            final float w = rect.width();
+            final float h = rect.height();
+            final float minSide = Math.min(w, h);
+            final float diag = (float) Math.hypot(w, h);
+            final float t = Math.max(0f, Math.min(1f, progress / CIRCLE_OPEN_FULL_AT));
+            final float eased = t * t * (3f - 2f * t);
+            final float r = (minSide + (diag - minSide) * eased) / 2f / scale;
+            final float cx = w / 2f / scale;
+            final float cy = h / 2f / scale;
+            mCircleOutline.set(Math.round(cx - r), Math.round(cy - r),
+                    Math.round(cx + r), Math.round(cy + r));
+            mCircleRadius = r;
+        }
         if (mIsAdaptiveIcon) {
             if ((!isOpening || Flags.enableLauncherIconShapes())
                     && progress >= shapeProgressStart) {
@@ -207,6 +233,14 @@ public class ClipIconView extends View implements ClipPathView {
                     : 0;
             sTmpRect.set(mFinalDrawableBounds);
             sTmpRect.offset(diffX, diffY);
+            if (isOpening) {
+                final float capPx = Math.min(dp.getDeviceProperties().getWidthPx(),
+                        dp.getDeviceProperties().getHeightPx()) * SPLASH_ICON_MAX_FRACTION;
+                final float onScreen = Math.max(sTmpRect.width(), sTmpRect.height()) * scale;
+                if (onScreen > capPx) {
+                    Utilities.scaleRectAboutCenter(sTmpRect, capPx / onScreen);
+                }
+            }
             mForeground.setBounds(sTmpRect);
         }
         invalidate();
@@ -304,7 +338,11 @@ public class ClipIconView extends View implements ClipPathView {
             setOutlineProvider(new ViewOutlineProvider() {
                 @Override
                 public void getOutline(View view, Outline outline) {
-                    outline.setRoundRect(mOutline, mTaskCornerRadius);
+                    if (mCircleActive) {
+                        outline.setRoundRect(mCircleOutline, mCircleRadius);
+                    } else {
+                        outline.setRoundRect(mOutline, mTaskCornerRadius);
+                    }
                 }
             });
             setClipToOutline(true);

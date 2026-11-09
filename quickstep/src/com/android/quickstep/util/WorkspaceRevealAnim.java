@@ -38,6 +38,7 @@ import com.android.launcher3.Hotseat;
 import com.android.launcher3.Launcher;
 import com.android.launcher3.R;
 import com.android.launcher3.Workspace;
+import com.android.launcher3.anim.OxyMotion;
 import com.android.launcher3.anim.PendingAnimation;
 import com.android.launcher3.statehandlers.LauncherDepthController;
 import com.android.launcher3.states.StateAnimationConfig;
@@ -55,7 +56,7 @@ public class WorkspaceRevealAnim {
     private static final String TAG = "WorkspaceRevealAnim";
 
     // Should be used for animations running alongside this WorkspaceRevealAnim.
-    public static final int DURATION_MS = 350;
+    public static final int DURATION_MS = 360;
     private static final FloatProperty<Workspace<?>> WORKSPACE_SCALE_PROPERTY =
             WORKSPACE_SCALE_PROPERTY_FACTORY.get(SCALE_INDEX_REVEAL_ANIM);
 
@@ -99,7 +100,7 @@ public class WorkspaceRevealAnim {
                 .getSysUIMultiplier().animateToValue(0f, 1f));
 
         mAnimators.setDuration(DURATION_MS);
-        mAnimators.setInterpolator(Interpolators.DECELERATED_EASE);
+        mAnimators.setInterpolator(OxyMotion.fade());
         mAnimators.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationCancel(Animator animation) {

@@ -445,6 +445,10 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
             stiffnessY = rp.getFloat(R.dimen.swipe_up_rect_y_stiffness);
             dampingX = rp.getFloat(R.dimen.swipe_up_rect_x_damping_ratio);
             dampingY = rp.getFloat(R.dimen.swipe_up_rect_y_damping_ratio);
+            // close bounce: soften damping so the window settles softly into the icon
+            // (min() never makes it stiffer than stock).
+            dampingX = Math.min(dampingX, 0.9f);
+            dampingY = Math.min(dampingY, 0.82f);
             rectStiffness = rp.getFloat(R.dimen.swipe_up_rect_scale_stiffness_v2);
 
             this.startRect = startRect;

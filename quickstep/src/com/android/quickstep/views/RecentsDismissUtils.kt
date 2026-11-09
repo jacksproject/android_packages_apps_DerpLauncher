@@ -199,10 +199,12 @@ constructor(
                 val driverThreshold =
                     dismissedTaskSecondaryDimension *
                         verticalFactor *
-                        RECENTS_SCALE_PROPERTY.get(recentsView)
+                        RECENTS_SCALE_PROPERTY.get(recentsView) *
+                        DISMISS_REFLOW_START_FRACTION // ColorOS gap fix: neighbours start closing the gap early
                 springSet.playAfterThreshold(
                     driverThreshold = driverThreshold,
                     triggeredSpringSet = reflowSpringSet,
+                    velocityScale = REFLOW_VELOCITY_SCALE,
                 )
             }
         } else if (springSet != null && dismissedTaskView != null) {
@@ -1413,7 +1415,8 @@ constructor(
                 }
             )
             .setStiffness(
-                resourceProvider.getFloat(R.dimen.expressive_dismiss_task_trans_x_stiffness)
+                resourceProvider.getFloat(R.dimen.expressive_dismiss_task_trans_x_stiffness) *
+                    REFLOW_STIFFNESS_MULTIPLIER
             )
     }
 
@@ -1553,6 +1556,7 @@ constructor(
             driverThreshold: Float,
             triggeredSpringSet: SpringSet,
             minVelocity: Float = 0f,
+            velocityScale: Float = 1f,
         ): SpringSet {
             trackSpringSet(triggeredSpringSet)
             var lastPosition = 0f
@@ -1571,7 +1575,7 @@ constructor(
                 lastPosition = value
                 if (isTriggered) {
                     val startVelocity =
-                        abs(velocity).coerceAtLeast(abs(minVelocity)) * velocity.sign
+                        abs(velocity).coerceAtLeast(abs(minVelocity)) * velocity.sign * velocityScale
                     triggeredSpringSet.driverSpring.setStartVelocity(startVelocity)
                     triggeredSpringSet.start()
                 }
@@ -1619,9 +1623,15 @@ constructor(
     private companion object {
         // The additional damping to apply to tasks further from the dismissed task.
         private const val ADDITIONAL_DISMISS_DAMPING_RATIO = 0.15f
-        private const val STACK_STYLE_REFLOW_DAMPING_RATIO = 1f
+        private const val STACK_STYLE_REFLOW_DAMPING_RATIO = 0.92f
         private const val RECENTS_SCALE_SPRING_MULTIPLIER = 1000f
         private const val DEFAULT_DISMISS_THRESHOLD_FRACTION = 0.5f
         private const val SPEED_UP_STIFFNESS = 100_000f
+        // Fraction of the dismissed card's travel after which the neighbours start closing the gap.
+        private const val DISMISS_REFLOW_START_FRACTION = 0.35f
+        // Makes the neighbours close the gap faster than stock.
+        private const val REFLOW_STIFFNESS_MULTIPLIER = 1.3f
+        // Share of the swipe velocity handed to the neighbours (lower = softer, no jerk).
+        private const val REFLOW_VELOCITY_SCALE = 0.6f
     }
 }
