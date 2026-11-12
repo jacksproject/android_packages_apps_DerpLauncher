@@ -56,7 +56,7 @@ public class WorkspaceRevealAnim {
     private static final String TAG = "WorkspaceRevealAnim";
 
     // Should be used for animations running alongside this WorkspaceRevealAnim.
-    public static final int DURATION_MS = 360;
+    public static final int DURATION_MS = OxyMotion.CONTENT_DURATION;
     private static final FloatProperty<Workspace<?>> WORKSPACE_SCALE_PROPERTY =
             WORKSPACE_SCALE_PROPERTY_FACTORY.get(SCALE_INDEX_REVEAL_ANIM);
 
@@ -100,7 +100,7 @@ public class WorkspaceRevealAnim {
                 .getSysUIMultiplier().animateToValue(0f, 1f));
 
         mAnimators.setDuration(DURATION_MS);
-        mAnimators.setInterpolator(OxyMotion.fade());
+        mAnimators.setInterpolator(OxyMotion.blurRamp());
         mAnimators.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationCancel(Animator animation) {

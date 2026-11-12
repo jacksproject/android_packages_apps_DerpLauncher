@@ -324,8 +324,8 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
         if (!mOnUpdateListeners.isEmpty()) {
             float currentWidth = Utilities.mapRange(mCurrentScaleProgress, mStartRect.width(),
                     mTargetRect.width());
-            float currentHeight = Utilities.mapRange(mCurrentScaleProgress, mStartRect.height(),
-                    mTargetRect.height());
+            float heightProgress = (float) Math.pow(Math.max(0f, Math.min(1f, Math.abs(mCurrentScaleProgress))), 0.72f);
+            float currentHeight = Utilities.mapRange(heightProgress, mStartRect.height(), mTargetRect.height());
             switch (mTracking) {
                 case TRACKING_TOP:
                     mCurrentRect.set(mCurrentCenterX - currentWidth / 2,
@@ -449,9 +449,11 @@ public class RectFSpringAnim extends SurfaceReleaseCheck {
             dampingY = rp.getFloat(R.dimen.swipe_up_rect_y_damping_ratio);
             // close bounce: soften damping so the window settles softly into the icon
             // (min() never makes it stiffer than stock).
-            dampingX = Math.min(dampingX, 0.9f);
-            dampingY = Math.min(dampingY, 0.82f);
-            rectStiffness = rp.getFloat(R.dimen.swipe_up_rect_scale_stiffness_v2);
+            stiffnessX = 420f;
+            stiffnessY = 380f;
+            dampingX = 0.92f;
+            dampingY = 0.86f;
+            rectStiffness = 460f;
 
             this.startRect = startRect;
             this.targetRect = targetRect;

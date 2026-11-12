@@ -61,10 +61,10 @@ public class ClipIconView extends View implements ClipPathView {
     private static final Rect sTmpRect = new Rect();
     // OPlus style splash: while opening, the icon grows with the window only up to this
     // fraction of the screen's short side, then stays small in the centre.
-    private static final float SPLASH_ICON_MAX_FRACTION = 0.16f;
+    private static final float SPLASH_ICON_MAX_FRACTION = 0.20f;
     // Opening splash is a circle that grows past the screen; it covers the screen by this
     // fraction of the open animation (0 = plain rounded rect).
-    private static final float CIRCLE_OPEN_FULL_AT = 0.35f;
+    private static final float CIRCLE_OPEN_FULL_AT = 0.0f;
 
     private final int mBlurSizeOutline;
     private final boolean mIsRtl;
@@ -84,6 +84,8 @@ public class ClipIconView extends View implements ClipPathView {
     private float mTaskCornerRadius;
 
     private final Rect mOutline = new Rect();
+    private final android.graphics.Paint mRipplePaint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+    private float mRippleProgress = 0f;
     // Circle clip used while opening (see CIRCLE_OPEN_FULL_AT).
     private final Rect mCircleOutline = new Rect();
     private float mCircleRadius;
@@ -234,12 +236,23 @@ public class ClipIconView extends View implements ClipPathView {
             sTmpRect.set(mFinalDrawableBounds);
             sTmpRect.offset(diffX, diffY);
             if (isOpening) {
-                final float capPx = Math.min(dp.getDeviceProperties().getWidthPx(),
-                        dp.getDeviceProperties().getHeightPx()) * SPLASH_ICON_MAX_FRACTION;
+                sTmpRect.offsetTo(
+                        mOutline.centerX() - sTmpRect.width() / 2,
+                        mOutline.centerY() - sTmpRect.height() / 2);
+                final float minScreenPx = Math.min(dp.getDeviceProperties().getWidthPx(),
+                        dp.getDeviceProperties().getHeightPx());
+                // Elastic splash pop bounce curve during the first 180ms of opening
+                float popProgress = Math.min(1f, progress * 2.2f);
+                float elasticPop = 1.0f + 0.18f * (float)Math.sin(popProgress * Math.PI) * (1f - popProgress);
+                final float targetSplashPx = minScreenPx * SPLASH_ICON_MAX_FRACTION * elasticPop
+                        * (0.92f + 0.16f * Math.min(1f, progress * 1.8f));
                 final float onScreen = Math.max(sTmpRect.width(), sTmpRect.height()) * scale;
-                if (onScreen > capPx) {
-                    Utilities.scaleRectAboutCenter(sTmpRect, capPx / onScreen);
+                if (onScreen > targetSplashPx && onScreen > 0f) {
+                    Utilities.scaleRectAboutCenter(sTmpRect, targetSplashPx / onScreen);
                 }
+            } else {
+                float closeCompression = 0.88f + 0.12f * (1f - progress);
+                Utilities.scaleRectAboutCenter(sTmpRect, closeCompression);
             }
             mForeground.setBounds(sTmpRect);
         }
@@ -346,6 +359,8 @@ public class ClipIconView extends View implements ClipPathView {
                 }
             });
             setClipToOutline(true);
+        mRipplePaint.setStyle(android.graphics.Paint.Style.FILL);
+        mRipplePaint.setColor(0x22FFFFFF);
         } else {
             setBackground(drawable);
             setClipToOutline(false);

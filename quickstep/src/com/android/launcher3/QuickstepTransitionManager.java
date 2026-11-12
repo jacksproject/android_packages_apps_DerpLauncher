@@ -196,66 +196,6 @@ import java.util.function.Function;
  * Manages the opening and closing app transitions from Launcher
  */
 public class QuickstepTransitionManager implements OnDeviceProfileChangeListener {
-    // Aquamorphic Fluid Dynamics Curves
-    private static final Interpolator OXY_17_OPEN_CURVE =
-            new PathInterpolator(0.18f, 0.90f, 0.20f, 1.0f);
-    private static final Interpolator OXY_17_CLOSE_CURVE =
-            new PathInterpolator(0.30f, 0.00f, 0.10f, 1.0f);
-
-    private static final int DURATION_OPEN_MS = 360;
-    private static final int DURATION_CLOSE_MS = 280;
-    private static final int DURATION_INTERRUPT_FAST_EXIT_MS = 140;
-
-    private AnimatorSet mParallelOpenAnim;
-    private AnimatorSet mParallelCloseAnim;
-
-    /**
-     * Parallel Transition Engine:
-     * Executes opening and closing window leashes concurrently without UI locks.
-     */
-    public void startOxyParallelAppTransition(RemoteAnimationTarget[] appTargets,
-                                                 RemoteAnimationTarget[] wallpaperTargets,
-                                                 RemoteAnimationTarget[] nonAppTargets) {
-        if (mParallelCloseAnim != null && mParallelCloseAnim.isRunning()) {
-            mParallelCloseAnim.setDuration(DURATION_INTERRUPT_FAST_EXIT_MS);
-        }
-
-        mParallelOpenAnim = new AnimatorSet();
-        ValueAnimator parallelAnim = ValueAnimator.ofFloat(0.0f, 1.0f);
-        parallelAnim.setDuration(DURATION_OPEN_MS);
-        parallelAnim.setInterpolator(OXY_17_OPEN_CURVE);
-
-        parallelAnim.addUpdateListener(animation -> {
-            float progress = (float) animation.getAnimatedValue();
-            SurfaceControl.Transaction t = new SurfaceControl.Transaction();
-
-            for (RemoteAnimationTarget target : appTargets) {
-                if (target == null || target.leash == null || !target.leash.isValid()) continue;
-
-                if (target.mode == RemoteAnimationTarget.MODE_OPENING) {
-                    float scale = 0.86f + (0.14f * progress);
-                    t.setScale(target.leash, scale, scale);
-                    t.setAlpha(target.leash, progress);
-                    t.setCornerRadius(target.leash, (1.0f - progress) * 64.0f);
-                } else if (target.mode == RemoteAnimationTarget.MODE_CLOSING) {
-                    float scale = 1.0f - (0.18f * progress);
-                    t.setScale(target.leash, scale, scale);
-                    t.setAlpha(target.leash, Math.max(0.0f, 1.0f - (progress * 1.25f)));
-                }
-            }
-            t.apply();
-        });
-
-        parallelAnim.addListener(new AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                mParallelOpenAnim = null;
-            }
-        });
-
-        mParallelOpenAnim.play(parallelAnim);
-        mParallelOpenAnim.start();
-    }
 
     private static final String TAG = "QuickstepTransitionManager";
 
@@ -271,10 +211,10 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
      */
     public static final int STATUS_BAR_TRANSITION_PRE_DELAY = 96;
 
-    public static final long APP_LAUNCH_DURATION = 800;
+    public static final long APP_LAUNCH_DURATION = OxyMotion.OPEN_DURATION;
 
-    private static final long APP_LAUNCH_ALPHA_DURATION = 200;
-    private static final long APP_LAUNCH_ALPHA_START_DELAY = 224;
+    private static final long APP_LAUNCH_ALPHA_DURATION = OxyMotion.APP_LAUNCH_ALPHA_DURATION;
+    private static final long APP_LAUNCH_ALPHA_START_DELAY = OxyMotion.APP_LAUNCH_ALPHA_START_DELAY;
 
     public static final int ANIMATION_NAV_FADE_IN_DURATION = 266;
     public static final int ANIMATION_NAV_FADE_OUT_DURATION = 133;
@@ -287,7 +227,7 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
 
     public static final int RECENTS_LAUNCH_DURATION = 336;
     private static final int LAUNCHER_RESUME_START_DELAY = 100;
-    private static final int CLOSING_TRANSITION_DURATION_MS = 380;
+    private static final int CLOSING_TRANSITION_DURATION_MS = (int) OxyMotion.CLOSE_DURATION;
     public static final int SPLIT_LAUNCH_DURATION = 370;
     public static final int SPLIT_DIVIDER_ANIM_DURATION = 100;
 
@@ -299,7 +239,7 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
     // is solved.
     private static final int TASKBAR_TO_HOME_DURATION_FAST = 300;
     private static final int TASKBAR_TO_HOME_DURATION_SLOW = 1000;
-    protected static final int CONTENT_SCALE_DURATION = 360;
+    protected static final int CONTENT_SCALE_DURATION = OxyMotion.CONTENT_DURATION;
 
     // Cross-fade duration between App Widget and App when launching from widget.
     private static final int WIDGET_CROSSFADE_DURATION_MILLIS = 125;
@@ -428,8 +368,7 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
             mSystemUiProxy.getHomeVisibilityState().addListener(mHomeVisibilityChangeListener);
         }
 
-        mOpeningXInterpolator = AnimationUtils.loadInterpolator(
-                launcher, R.interpolator.app_open_x);
+        mOpeningXInterpolator = OxyMotion.openX();
         mOpeningInterpolator = OxyMotion.open();
         mLatencyTracker = LatencyTracker.getInstance(launcher);
 
@@ -861,7 +800,7 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
 
                 ObjectAnimator scaleAnim = ObjectAnimator.ofFloat(view, SCALE_PROPERTY, scale)
                         .setDuration(CONTENT_SCALE_DURATION);
-                scaleAnim.setInterpolator(OxyMotion.fade());
+                scaleAnim.setInterpolator(OxyMotion.workspaceScale());
                 launcherAnimator.play(scaleAnim);
             });
 
@@ -1022,8 +961,7 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
         });
 
         final float initialWindowRadius = supportsRoundedCornersOnWindows(mLauncher.getResources())
-                ? Math.min(Math.max(crop.width(), crop.height()) / 2f,
-                        getWindowCornerRadius(mLauncher) * 3f)
+                ? Math.min(crop.width(), crop.height()) * 0.24f
                 : 0f;
         final float finalShadowRadius = appTargetsAreTranslucent ? 0 : mMaxShadowRadius;
 
@@ -1053,8 +991,8 @@ public class QuickstepTransitionManager implements OnDeviceProfileChangeListener
                     NAV_FADE_IN_INTERPOLATOR, ANIMATION_DELAY_NAV_FADE_IN,
                     ANIMATION_NAV_FADE_IN_DURATION, APP_LAUNCH_DURATION));
 
-            FloatProp mBlurRadius = new FloatProp(0f, mMaxBlurRadius, OxyMotion.blurRamp());
-            FloatProp mBlurScrimAlpha = new FloatProp(0f, scrimAlpha, OxyMotion.blurRamp());
+            FloatProp mBlurRadius = new FloatProp(0f, mMaxBlurRadius * OxyMotion.BLUR_DEPTH_OPEN, OxyMotion.blurRamp());
+            FloatProp mBlurScrimAlpha = new FloatProp(0f, scrimAlpha * 0.55f, OxyMotion.blurRamp());
 
             @Override
             public void onUpdate(float percent, boolean initOnly) {
